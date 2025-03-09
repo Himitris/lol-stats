@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Sword, Shield, Target, Timer, TrendingUp, Users } from 'lucide-react';
+import { Search, Sword, Shield, Target, Timer, TrendingUp, Users, ChevronDown, ArrowUp, ArrowDown, ExternalLink, Copy } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -10,8 +10,14 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-  Legend
+  Legend,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar
 } from 'recharts';
+import { cn } from '../lib/utils';
 
 interface MatchData {
   id: string;
@@ -94,28 +100,107 @@ const trendData = [
   { game: 3, kda: 7, cs: 220, damage: 28500 }
 ];
 
+const radarData = [
+  { stat: 'KDA', value: 75, fullMark: 100 },
+  { stat: 'CS', value: 82, fullMark: 100 },
+  { stat: 'Damage', value: 90, fullMark: 100 },
+  { stat: 'Gold', value: 70, fullMark: 100 },
+  { stat: 'Vision', value: 60, fullMark: 100 },
+  { stat: 'Objective', value: 85, fullMark: 100 },
+];
+
 export function Analysis() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
+
+  const getResultColor = (result: 'victory' | 'defeat') => {
+    return result === 'victory' ? 'from-green-900/30 to-green-700/10' : 'from-red-900/30 to-red-700/10';
+  };
+
+  const getResultTextColor = (result: 'victory' | 'defeat') => {
+    return result === 'victory' ? 'text-green-400' : 'text-red-400';
+  };
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-        <h1 className="text-3xl font-bold">Analyse de Parties</h1>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+          Analyse de Performances
+        </h1>
         <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
+          </div>
           <input
             type="text"
             placeholder="Rechercher un invocateur..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full md:w-64 bg-gray-800 border border-gray-700 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full md:w-64 bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        </div>
+      </div>
+
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-gray-800/60 backdrop-blur-md p-6 rounded-lg border border-gray-700 shadow-lg hover:border-blue-500/40 transition-all group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-900 rounded-lg border border-gray-700 group-hover:border-blue-500/30 transition-all">
+                <TrendingUp className="h-5 w-5 text-blue-400" />
+              </div>
+              <h2 className="text-xl font-semibold text-white">Win Rate</h2>
+            </div>
+            <div className="text-green-400 text-2xl font-bold">62.5%</div>
+          </div>
+          <div className="flex items-center justify-between text-gray-400">
+            <span>40 parties jouées</span>
+            <span className="flex items-center text-green-400">
+              <ArrowUp className="h-4 w-4 mr-1" />
+              +4.2%
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-gray-800/60 backdrop-blur-md p-6 rounded-lg border border-gray-700 shadow-lg hover:border-blue-500/40 transition-all group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-900 rounded-lg border border-gray-700 group-hover:border-blue-500/30 transition-all">
+                <Sword className="h-5 w-5 text-blue-400" />
+              </div>
+              <h2 className="text-xl font-semibold text-white">KDA Moyen</h2>
+            </div>
+            <div className="text-blue-400 text-2xl font-bold">4.81</div>
+          </div>
+          <div className="flex items-center justify-between text-gray-400">
+            <span>8.4 / 3.3 / 7.4</span>
+            <span className="flex items-center text-green-400">
+              <ArrowUp className="h-4 w-4 mr-1" />
+              +0.65
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-gray-800/60 backdrop-blur-md p-6 rounded-lg border border-gray-700 shadow-lg hover:border-blue-500/40 transition-all group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-900 rounded-lg border border-gray-700 group-hover:border-blue-500/30 transition-all">
+                <Target className="h-5 w-5 text-blue-400" />
+              </div>
+              <h2 className="text-xl font-semibold text-white">Champion Préféré</h2>
+            </div>
+            <div className="text-white text-xl font-bold">Yasuo</div>
+          </div>
+          <div className="flex items-center justify-between text-gray-400">
+            <span>15 parties</span>
+            <span className="text-green-400">67% WR</span>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-gray-800 rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Performance Comparée</h2>
+        <div className="bg-gray-800/60 backdrop-blur-md rounded-lg border border-gray-700 shadow-lg p-6">
+          <h2 className="text-xl font-semibold mb-4 text-white">Performance Comparée</h2>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={performanceData}>
@@ -125,38 +210,38 @@ export function Analysis() {
                 <Tooltip
                   contentStyle={{ backgroundColor: '#1F2937', border: 'none' }}
                   itemStyle={{ color: '#E5E7EB' }}
+                  cursor={{ fill: 'rgba(107, 114, 128, 0.1)' }}
                 />
-                <Bar dataKey="value" fill="#0AC8B9" name="Vous" />
-                <Bar dataKey="avg" fill="#4B5563" name="Moyenne du rang" />
+                <Bar dataKey="value" fill="#0AC8B9" name="Vous" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="avg" fill="#4B5563" name="Moyenne du rang" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Tendances sur les 10 dernières parties</h2>
+        <div className="bg-gray-800/60 backdrop-blur-md rounded-lg border border-gray-700 shadow-lg p-6">
+          <h2 className="text-xl font-semibold mb-4 text-white">Graphique des Compétences</h2>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="game" stroke="#9CA3AF" />
-                <YAxis stroke="#9CA3AF" />
+              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                <PolarGrid stroke="#4B5563" />
+                <PolarAngleAxis dataKey="stat" stroke="#9CA3AF" />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#4B5563" />
+                <Radar name="Compétences" dataKey="value" stroke="#0AC8B9" fill="#0AC8B9" fillOpacity={0.2} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#1F2937', border: 'none' }}
                   itemStyle={{ color: '#E5E7EB' }}
                 />
-                <Legend />
-                <Line type="monotone" dataKey="kda" stroke="#0AC8B9" name="KDA" />
-                <Line type="monotone" dataKey="cs" stroke="#F59E0B" name="CS" />
-                <Line type="monotone" dataKey="damage" stroke="#EF4444" name="Damage" />
-              </LineChart>
+              </RadarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      <div className="bg-gray-800 rounded-lg overflow-hidden">
-        <h2 className="text-xl font-semibold p-6 border-b border-gray-700">Historique des Parties</h2>
+      <div className="bg-gray-800/60 backdrop-blur-md rounded-lg border border-gray-700 shadow-lg">
+        <div className="p-6 border-b border-gray-700">
+          <h2 className="text-xl font-semibold text-white">Historique des Parties</h2>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -174,20 +259,26 @@ export function Analysis() {
               {mockMatches.map(match => (
                 <tr
                   key={match.id}
-                  className={`border-b border-gray-700 hover:bg-gray-700/50 transition-colors ${
-                    match.result === 'victory' ? 'bg-green-900/10' : 'bg-red-900/10'
-                  }`}
+                  onClick={() => setSelectedMatchId(selectedMatchId === match.id ? null : match.id)}
+                  className={cn(
+                    "border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors cursor-pointer",
+                    selectedMatchId === match.id ? "bg-gray-700/50" : `bg-gradient-to-r ${getResultColor(match.result)}`
+                  )}
                 >
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-3">
-                      <img
-                        src={`https://ddragon.leagueoflegends.com/cdn/14.4.1/img/champion/${match.champion}.png`}
-                        alt={match.champion}
-                        className="w-12 h-12 rounded-lg"
-                      />
+                      <div className="w-12 h-12 rounded-lg border-2 border-gray-700 overflow-hidden">
+                        <img
+                          src={`https://ddragon.leagueoflegends.com/cdn/14.4.1/img/champion/${match.champion}.png`}
+                          alt={match.champion}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                       <div>
                         <span className="font-medium block">{match.champion}</span>
-                        <span className="text-sm text-gray-400">{match.role}</span>
+                        <span className={cn("text-sm", getResultTextColor(match.result))}>
+                          {match.result === 'victory' ? 'Victoire' : 'Défaite'} • {match.role}
+                        </span>
                       </div>
                     </div>
                   </td>
@@ -221,6 +312,28 @@ export function Analysis() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Trends Chart */}
+      <div className="bg-gray-800/60 backdrop-blur-md rounded-lg border border-gray-700 shadow-lg p-6">
+        <h2 className="text-xl font-semibold mb-4 text-white">Tendances sur les dernières parties</h2>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis dataKey="game" stroke="#9CA3AF" />
+              <YAxis stroke="#9CA3AF" />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#1F2937', border: 'none' }}
+                itemStyle={{ color: '#E5E7EB' }}
+              />
+              <Legend />
+              <Line type="monotone" dataKey="kda" stroke="#0AC8B9" name="KDA" activeDot={{ r: 8 }} />
+              <Line type="monotone" dataKey="cs" stroke="#F59E0B" name="CS" />
+              <Line type="monotone" dataKey="damage" stroke="#EF4444" name="Damage" />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>

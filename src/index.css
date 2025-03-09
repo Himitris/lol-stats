@@ -1,3 +1,129 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --primary: #0AC8B9;
+  --primary-dark: #077267;
+}
+
+body {
+  @apply bg-gray-950 text-white;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Ajoutez une animation de pulsation pour les éléments qui doivent attirer l'attention */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(10, 200, 185, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(10, 200, 185, 0);
+  }
+}
+
+.pulse-animation {
+  animation: pulse-glow 2s infinite;
+}
+
+/* Styliser les scrollbars pour qu'elles soient plus discrètes et thématiques */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-700 rounded-full;
+  border: 2px solid transparent;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-blue-600;
+}
+
+/* Animation d'entrée pour les cartes et tableaux */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-animation {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+/* Ajout de flou et de grain pour un style gaming moderne */
+.frosted-glass {
+  @apply backdrop-blur-md bg-gray-800/50 border border-gray-700;
+  position: relative;
+  overflow: hidden;
+}
+
+.frosted-glass::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeBlend mode='screen'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+/* Effet de néon pour les boutons et bordures importantes */
+.neon-border {
+  @apply border border-blue-500;
+  box-shadow: 0 0 10px rgba(10, 200, 185, 0.5),
+              inset 0 0 5px rgba(10, 200, 185, 0.2);
+}
+
+.neon-text {
+  text-shadow: 0 0 10px rgba(10, 200, 185, 0.7);
+}
+
+/* Styliser les boutons */
+.btn-gaming {
+  @apply px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg font-medium transition-all duration-200;
+}
+
+.btn-gaming:hover {
+  @apply border-blue-500 bg-gray-700;
+  box-shadow: 0 0 15px rgba(10, 200, 185, 0.3);
+}
+
+.btn-gaming-primary {
+  @apply px-4 py-2 bg-blue-600 border border-blue-500 rounded-lg font-medium transition-all duration-200 text-white;
+}
+
+.btn-gaming-primary:hover {
+  @apply bg-blue-500;
+  box-shadow: 0 0 15px rgba(10, 200, 185, 0.5);
+}
+
+/* Style pour les tableaux */
+.table-gaming {
+  @apply w-full;
+}
+
+.table-gaming th {
+  @apply px-6 py-4 text-left font-medium text-gray-300 border-b border-gray-700/50;
+  background: linear-gradient(180deg, rgba(31, 41, 55, 0.8) 0%, rgba(17, 24, 39, 0.8) 100%);
+}
+
+.table-gaming td {
+  @apply px-6 py-4 border-b border-gray-700/50;
+}
+
+.table-gaming tr:hover {
+  @apply bg-gray-700/30;
+}

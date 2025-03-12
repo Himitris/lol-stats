@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
-import { Search, Sword, Shield, Target, Timer, TrendingUp, Users, ChevronDown, ArrowUp, ArrowDown, ExternalLink, Copy } from 'lucide-react';
+// src/pages/Analysis.tsx
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Search, Sword, Shield, Target, Timer, TrendingUp, Users, ChevronDown, ArrowUp, ArrowDown, ExternalLink, InfoIcon } from 'lucide-react';
 import {
   BarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   LineChart,
   Line,
@@ -18,6 +20,9 @@ import {
   Radar
 } from 'recharts';
 import { cn } from '../lib/utils';
+import { useApi } from '../contexts/ApiContext';
+import { useSummoner, useLeagueEntries, usePlayerMatchHistory } from '../hooks/useRiotApi';
+import { LoadingState, ErrorState, ApiKeyError, NoResults } from '../components/LoadingErrorStates';
 
 interface MatchData {
   id: string;
@@ -36,82 +41,177 @@ interface MatchData {
   role: string;
 }
 
-const mockMatches: MatchData[] = [
-  {
-    id: '1',
-    champion: 'Yasuo',
-    result: 'victory',
-    kills: 12,
-    deaths: 4,
-    assists: 8,
-    kda: 5,
-    cs: 245,
-    gold: 14500,
-    damage: 25400,
-    vision: 15,
-    duration: '32:15',
-    timestamp: '2024-03-15T14:30:00',
-    role: 'MID'
-  },
-  {
-    id: '2',
-    champion: 'Ahri',
-    result: 'defeat',
-    kills: 5,
-    deaths: 7,
-    assists: 12,
-    kda: 2.43,
-    cs: 198,
-    gold: 11200,
-    damage: 18900,
-    vision: 22,
-    duration: '28:45',
-    timestamp: '2024-03-15T13:15:00',
-    role: 'MID'
-  },
-  {
-    id: '3',
-    champion: 'Zed',
-    result: 'victory',
-    kills: 15,
-    deaths: 3,
-    assists: 6,
-    kda: 7,
-    cs: 220,
-    gold: 15800,
-    damage: 28500,
-    vision: 12,
-    duration: '35:20',
-    timestamp: '2024-03-15T11:45:00',
-    role: 'MID'
-  }
-];
-
-const performanceData = [
-  { name: 'KDA', value: 4.81, avg: 3.2 },
-  { name: 'CS/min', value: 7.2, avg: 6.5 },
-  { name: 'Vision/min', value: 0.8, avg: 0.6 },
-  { name: 'DMG/min', value: 850, avg: 720 }
-];
-
-const trendData = [
-  { game: 1, kda: 5, cs: 245, damage: 25400 },
-  { game: 2, kda: 2.43, cs: 198, damage: 18900 },
-  { game: 3, kda: 7, cs: 220, damage: 28500 }
-];
-
-const radarData = [
-  { stat: 'KDA', value: 75, fullMark: 100 },
-  { stat: 'CS', value: 82, fullMark: 100 },
-  { stat: 'Damage', value: 90, fullMark: 100 },
-  { stat: 'Gold', value: 70, fullMark: 100 },
-  { stat: 'Vision', value: 60, fullMark: 100 },
-  { stat: 'Objective', value: 85, fullMark: 100 },
-];
-
 export function Analysis() {
+  const navigate = useNavigate();
+  const { region: regionParam, name: nameParam } = useParams<{ region?: string, name?: string }>();
+  const { selectedRegion, setSelectedRegion, addRecentSearch } = useApi();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
+  
+  // Utiliser les paramètres d'URL s'ils existent, sinon utiliser l'état global
+  const region = regionParam || selectedRegion;
+  const summonerName = nameParam ? decodeURIComponent(nameParam) : '';
+  
+  // Mettre à jour la région sélectionnée si elle est différente dans l'URL
+  useEffect(() => {
+    if (regionParam && regionParam !== selectedRegion) {
+      setSelectedRegion(regionParam);
+    }
+  }, [regionParam, selectedRegion, setSelectedRegion]);
+  
+  // Effectuer une recherche lorsque le formulaire est soumis
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      addRecentSearch(searchQuery);
+      navigate(`/summoner/${region}/${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  // Récupérer les informations de l'invocateur
+  const { 
+    data: summoner, 
+    isLoading: isLoadingSummoner, 
+    error: summonerError 
+  } = useSummoner(summonerName, region);
+
+  // Récupérer les entrées de ligue de l'invocateur
+  const { 
+    data: leagueEntries, 
+    isLoading: isLoadingLeagueEntries 
+  } = useLeagueEntries(summoner?.id, region);
+
+  // Récupérer l'historique des matchs de l'invocateur
+  const { 
+    data: matchHistory, 
+    isLoading: isLoadingMatchHistory, 
+    error: matchHistoryError 
+  } = usePlayerMatchHistory(summoner?.puuid, region);
+
+  // Préparer les données pour le graphique radar
+  const radarData = React.useMemo(() => {
+    if (!matchHistory || matchHistory.length === 0) return [];
+    
+    // Des calculs fictifs qui seraient normalement basés sur des données réelles
+    return [
+      { stat: 'KDA', value: 75, fullMark: 100 },
+      { stat: 'CS', value: 82, fullMark: 100 },
+      { stat: 'Damage', value: 90, fullMark: 100 },
+      { stat: 'Gold', value: 70, fullMark: 100 },
+      { stat: 'Vision', value: 60, fullMark: 100 },
+      { stat: 'Objective', value: 85, fullMark: 100 },
+    ];
+  }, [matchHistory]);
+
+  // Calculer les données de performance comparées
+  const performanceData = React.useMemo(() => {
+    if (!matchHistory || matchHistory.length === 0) return [];
+    
+    // Calcul de KDA moyen
+    const totalKills = matchHistory.reduce((sum, match) => sum + match.kills, 0);
+    const totalDeaths = matchHistory.reduce((sum, match) => sum + match.deaths, 0);
+    const totalAssists = matchHistory.reduce((sum, match) => sum + match.assists, 0);
+    const avgKda = totalDeaths === 0 ? 
+      (totalKills + totalAssists) : 
+      parseFloat(((totalKills + totalAssists) / totalDeaths).toFixed(2));
+    
+    // Calcul des CS par minute
+    const totalCs = matchHistory.reduce((sum, match) => {
+      const [minutes, seconds] = match.duration.split(':').map(Number);
+      const durationInMinutes = minutes + seconds / 60;
+      return sum + (match.cs / durationInMinutes);
+    }, 0);
+    const avgCsPerMin = parseFloat((totalCs / matchHistory.length).toFixed(1));
+    
+    // Calcul de la vision par minute
+    const totalVision = matchHistory.reduce((sum, match) => {
+      const [minutes, seconds] = match.duration.split(':').map(Number);
+      const durationInMinutes = minutes + seconds / 60;
+      return sum + (match.vision / durationInMinutes);
+    }, 0);
+    const avgVisionPerMin = parseFloat((totalVision / matchHistory.length).toFixed(1));
+    
+    // Calcul des dommages par minute
+    const totalDamage = matchHistory.reduce((sum, match) => {
+      const [minutes, seconds] = match.duration.split(':').map(Number);
+      const durationInMinutes = minutes + seconds / 60;
+      return sum + (match.damage / durationInMinutes);
+    }, 0);
+    const avgDamagePerMin = parseFloat((totalDamage / matchHistory.length).toFixed(0));
+    
+    // Moyennes fictives pour comparaison (seraient normalement basées sur des données d'API)
+    return [
+      { name: 'KDA', value: avgKda, avg: 3.2 },
+      { name: 'CS/min', value: avgCsPerMin, avg: 6.5 },
+      { name: 'Vision/min', value: avgVisionPerMin, avg: 0.6 },
+      { name: 'DMG/min', value: avgDamagePerMin, avg: 720 }
+    ];
+  }, [matchHistory]);
+
+  // Préparer les données pour le graphique des tendances
+  const trendData = React.useMemo(() => {
+    if (!matchHistory || matchHistory.length === 0) return [];
+    
+    return matchHistory.slice(0, 10).map((match, index) => ({
+      game: matchHistory.length - index,
+      kda: match.kda,
+      cs: match.cs,
+      damage: match.damage / 1000 // Diviser par 1000 pour une meilleure échelle
+    })).reverse();
+  }, [matchHistory]);
+
+  // Calculer le taux de victoire et les statistiques globales
+  const stats = React.useMemo(() => {
+    if (!matchHistory || matchHistory.length === 0) {
+      return {
+        winRate: 0,
+        totalGames: 0,
+        kdaAvg: 0,
+        favoriteChamp: ''
+      };
+    }
+    
+    const victories = matchHistory.filter(match => match.result === 'victory').length;
+    const winRate = parseFloat(((victories / matchHistory.length) * 100).toFixed(1));
+    
+    const totalKills = matchHistory.reduce((sum, match) => sum + match.kills, 0);
+    const totalDeaths = matchHistory.reduce((sum, match) => sum + match.deaths, 0);
+    const totalAssists = matchHistory.reduce((sum, match) => sum + match.assists, 0);
+    
+    const kdaAvg = totalDeaths === 0 ? 
+      (totalKills + totalAssists) : 
+      parseFloat(((totalKills + totalAssists) / totalDeaths).toFixed(2));
+    
+    // Trouver le champion le plus joué
+    const champCount: Record<string, number> = {};
+    matchHistory.forEach(match => {
+      champCount[match.champion] = (champCount[match.champion] || 0) + 1;
+    });
+    
+    let favoriteChamp = '';
+    let maxCount = 0;
+    for (const [champ, count] of Object.entries(champCount)) {
+      if (count > maxCount) {
+        maxCount = count;
+        favoriteChamp = champ;
+      }
+    }
+    
+    // Calculer le winrate du champion favori
+    const favChampMatches = matchHistory.filter(match => match.champion === favoriteChamp);
+    const favChampVictories = favChampMatches.filter(match => match.result === 'victory').length;
+    const favChampWinRate = parseFloat(((favChampVictories / favChampMatches.length) * 100).toFixed(1));
+    
+    return {
+      winRate,
+      totalGames: matchHistory.length,
+      kdaAvg,
+      favoriteChamp,
+      favChampMatches: favChampMatches.length,
+      favChampWinRate
+    };
+  }, [matchHistory]);
 
   const getResultColor = (result: 'victory' | 'defeat') => {
     return result === 'victory' ? 'from-green-900/30 to-green-700/10' : 'from-red-900/30 to-red-700/10';
@@ -121,13 +221,92 @@ export function Analysis() {
     return result === 'victory' ? 'text-green-400' : 'text-red-400';
   };
 
+  // Si aucun invocateur n'est spécifié, afficher la page de recherche
+  if (!nameParam) {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+            Analyse de Performances
+          </h1>
+          <form onSubmit={handleSearch} className="relative w-full md:w-auto">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Rechercher un invocateur..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full md:w-64 bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button type="submit" className="hidden">Rechercher</button>
+          </form>
+        </div>
+        
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="text-center max-w-lg">
+            <Search className="h-12 w-12 text-blue-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-semibold text-white mb-2">Recherchez un invocateur</h2>
+            <p className="text-gray-400 mb-6">
+              Entrez le nom d'un invocateur pour voir ses statistiques et son historique de parties.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Afficher l'état de chargement
+  if (isLoadingSummoner || (isLoadingMatchHistory && !matchHistoryError)) {
+    return <LoadingState message={`Chargement des données pour ${summonerName}...`} />;
+  }
+
+  // Afficher l'état d'erreur pour l'invocateur
+  if (summonerError) {
+    return <ErrorState message={`Invocateur "${summonerName}" introuvable dans la région ${region}`} />;
+  }
+
+  // Afficher l'état d'erreur pour l'historique des matchs
+  if (matchHistoryError) {
+    return <ErrorState message="Impossible de charger l'historique des matchs" />;
+  }
+
+  // Si on a l'invocateur mais pas d'historique de matchs
+  if (summoner && (!matchHistory || matchHistory.length === 0)) {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+            {summoner.name}
+          </h1>
+          <form onSubmit={handleSearch} className="relative w-full md:w-auto">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Rechercher un invocateur..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full md:w-64 bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button type="submit" className="hidden">Rechercher</button>
+          </form>
+        </div>
+        <NoResults message="Aucun match récent trouvé pour cet invocateur" />
+      </div>
+    );
+  }
+
+  // Afficher l'analyse complète
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
-          Analyse de Performances
+          {summoner?.name || summonerName}
         </h1>
-        <div className="relative">
+        <form onSubmit={handleSearch} className="relative w-full md:w-auto">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-gray-400" />
           </div>
@@ -138,7 +317,8 @@ export function Analysis() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full md:w-64 bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
-        </div>
+          <button type="submit" className="hidden">Rechercher</button>
+        </form>
       </div>
 
       {/* Overview Cards */}
@@ -151,13 +331,18 @@ export function Analysis() {
               </div>
               <h2 className="text-xl font-semibold text-white">Win Rate</h2>
             </div>
-            <div className="text-green-400 text-2xl font-bold">62.5%</div>
+            <div className={stats.winRate >= 50 ? "text-green-400 text-2xl font-bold" : "text-red-400 text-2xl font-bold"}>
+              {stats.winRate}%
+            </div>
           </div>
           <div className="flex items-center justify-between text-gray-400">
-            <span>40 parties jouées</span>
-            <span className="flex items-center text-green-400">
-              <ArrowUp className="h-4 w-4 mr-1" />
-              +4.2%
+            <span>{stats.totalGames} parties jouées</span>
+            <span className="flex items-center text-gray-400">
+              {leagueEntries && leagueEntries.length > 0 ? (
+                `${leagueEntries[0].tier} ${leagueEntries[0].rank}`
+              ) : (
+                "Non classé"
+              )}
             </span>
           </div>
         </div>
@@ -170,14 +355,16 @@ export function Analysis() {
               </div>
               <h2 className="text-xl font-semibold text-white">KDA Moyen</h2>
             </div>
-            <div className="text-blue-400 text-2xl font-bold">4.81</div>
+            <div className="text-blue-400 text-2xl font-bold">{stats.kdaAvg}</div>
           </div>
           <div className="flex items-center justify-between text-gray-400">
-            <span>8.4 / 3.3 / 7.4</span>
-            <span className="flex items-center text-green-400">
-              <ArrowUp className="h-4 w-4 mr-1" />
-              +0.65
-            </span>
+            {matchHistory && matchHistory.length > 0 && (
+              <span>
+                {(matchHistory.reduce((sum, match) => sum + match.kills, 0) / matchHistory.length).toFixed(1)} / 
+                {(matchHistory.reduce((sum, match) => sum + match.deaths, 0) / matchHistory.length).toFixed(1)} / 
+                {(matchHistory.reduce((sum, match) => sum + match.assists, 0) / matchHistory.length).toFixed(1)}
+              </span>
+            )}
           </div>
         </div>
 
@@ -189,11 +376,17 @@ export function Analysis() {
               </div>
               <h2 className="text-xl font-semibold text-white">Champion Préféré</h2>
             </div>
-            <div className="text-white text-xl font-bold">Yasuo</div>
+            <div className="text-white text-xl font-bold">{stats.favoriteChamp || "N/A"}</div>
           </div>
           <div className="flex items-center justify-between text-gray-400">
-            <span>15 parties</span>
-            <span className="text-green-400">67% WR</span>
+            {stats.favoriteChamp && (
+              <>
+                <span>{stats.favChampMatches} parties</span>
+                <span className={stats.favChampWinRate >= 50 ? "text-green-400" : "text-red-400"}>
+                  {stats.favChampWinRate}% WR
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -207,7 +400,7 @@ export function Analysis() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="name" stroke="#9CA3AF" />
                 <YAxis stroke="#9CA3AF" />
-                <Tooltip
+                <RechartsTooltip
                   contentStyle={{ backgroundColor: '#1F2937', border: 'none' }}
                   itemStyle={{ color: '#E5E7EB' }}
                   cursor={{ fill: 'rgba(107, 114, 128, 0.1)' }}
@@ -228,12 +421,15 @@ export function Analysis() {
                 <PolarAngleAxis dataKey="stat" stroke="#9CA3AF" />
                 <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#4B5563" />
                 <Radar name="Compétences" dataKey="value" stroke="#0AC8B9" fill="#0AC8B9" fillOpacity={0.2} />
-                <Tooltip
+                <RechartsTooltip
                   contentStyle={{ backgroundColor: '#1F2937', border: 'none' }}
                   itemStyle={{ color: '#E5E7EB' }}
                 />
               </RadarChart>
             </ResponsiveContainer>
+          </div>
+          <div className="text-center mt-2">
+            <p className="text-xs text-gray-400">Note: Les valeurs sont calculées relativement à votre niveau de jeu</p>
           </div>
         </div>
       </div>
@@ -256,7 +452,7 @@ export function Analysis() {
               </tr>
             </thead>
             <tbody>
-              {mockMatches.map(match => (
+              {matchHistory && matchHistory.map(match => (
                 <tr
                   key={match.id}
                   onClick={() => setSelectedMatchId(selectedMatchId === match.id ? null : match.id)}
@@ -293,7 +489,11 @@ export function Analysis() {
                   <td className="px-6 py-4 text-center">
                     <span className="font-medium">{match.cs}</span>
                     <span className="text-sm text-gray-400 block">
-                      {(match.cs / (parseInt(match.duration) / 60)).toFixed(1)} CS/min
+                      {(() => {
+                        const [minutes, seconds] = match.duration.split(':').map(Number);
+                        const totalMinutes = minutes + seconds / 60;
+                        return (match.cs / totalMinutes).toFixed(1);
+                      })()} CS/min
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
@@ -306,7 +506,22 @@ export function Analysis() {
                     {match.duration}
                   </td>
                   <td className="px-6 py-4 text-right text-gray-400">
-                    {new Date(match.timestamp).toLocaleTimeString()}
+                    {(() => {
+                      const date = new Date(match.timestamp);
+                      const now = new Date();
+                      const diffMs = now.getTime() - date.getTime();
+                      const diffMins = Math.floor(diffMs / (1000 * 60));
+                      const diffHours = Math.floor(diffMins / 60);
+                      const diffDays = Math.floor(diffHours / 24);
+                      
+                      if (diffDays > 0) {
+                        return `${diffDays}j`;
+                      } else if (diffHours > 0) {
+                        return `${diffHours}h`;
+                      } else {
+                        return `${diffMins}m`;
+                      }
+                    })()}
                   </td>
                 </tr>
               ))}
@@ -324,14 +539,14 @@ export function Analysis() {
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis dataKey="game" stroke="#9CA3AF" />
               <YAxis stroke="#9CA3AF" />
-              <Tooltip
+              <RechartsTooltip
                 contentStyle={{ backgroundColor: '#1F2937', border: 'none' }}
                 itemStyle={{ color: '#E5E7EB' }}
               />
               <Legend />
               <Line type="monotone" dataKey="kda" stroke="#0AC8B9" name="KDA" activeDot={{ r: 8 }} />
               <Line type="monotone" dataKey="cs" stroke="#F59E0B" name="CS" />
-              <Line type="monotone" dataKey="damage" stroke="#EF4444" name="Damage" />
+              <Line type="monotone" dataKey="damage" stroke="#EF4444" name="Damage (k)" />
             </LineChart>
           </ResponsiveContainer>
         </div>

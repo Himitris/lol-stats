@@ -55,6 +55,7 @@ export interface MatchSummary {
 }
 
 export interface MatchParticipant {
+  goldEarned: number;
   assists: number;
   championId: number;
   championName: string;
